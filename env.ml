@@ -16,4 +16,4 @@ let rec lookup (environment : env) (x : variable) = match environment with
 
 let rec updateEnv (environment : env) (x : variable) (v : value) = match environment with
   | [] -> [(x,v)]
-  | hd :: tl -> updateEnv tl x v
+  | hd :: tl -> hd :: updateEnv tl x v

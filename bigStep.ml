@@ -39,7 +39,18 @@ let rec bs (t : expr) (e : env) = match t with
     let t2' = bs t2 e in
       evalBop op t1' t2'
 
-  (* funçoes *)
-
+  (* funcoes *)
+  | Fn(var, t') -> (* BS-FN *)
+    Vclos(var, t', e)
+  | Let(var, t1, t2) -> (* BS-LET *)
+    let v' = bs t1 e in
+    let e' = updateEnv e var v' in
+    let v = bs t2 e' in v
+  | App(t1, t2) ->
+    let cl = bs t1 e in
+    let v' = bs t2 e in match cl with
+      | Vclos(var, expr, e') -> (* BS-APP*)
+        let e'' = updateEnv e' var v' in
+        let v = bs expr e'' in v
 
   | _ -> raise NoRuleApplies
