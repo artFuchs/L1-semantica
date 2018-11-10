@@ -5,6 +5,7 @@
 exception NoRuleApplies
 exception NoOpMatches
 exception InvalidApp
+exception InvalidList
 
 
 let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
@@ -39,8 +40,9 @@ let rec bs (t : expr) (e : env) = match t with
   | Unop (Not, t) ->
       let v = bs t e in
       ( match v with
-      | Vbool(vb) -> Vbool(not vb)
-      | _ -> raise NoOpMatches)
+        | Vbool(vb) -> Vbool(not vb)
+        | _ -> raise NoOpMatches
+      )
 
   (* Operadores binarios*)
   | Binop (op, t1, t2) ->
@@ -61,9 +63,10 @@ let rec bs (t : expr) (e : env) = match t with
     let v = bs t2 e' in v
 
   (* Applicacao de funcoes *)
-  | App(t1, t2) ->
+  | App (t1, t2) ->
     let cl = bs t1 e in
-    let v' = bs t2 e in match cl with
+    let v' = bs t2 e in
+    ( match cl with
       | Vclos(var, expr, e') -> (* BS-APP *)
         let e'' = updateEnv e' var v' in
         let v = bs expr e'' in v
@@ -72,5 +75,23 @@ let rec bs (t : expr) (e : env) = match t with
         let e''' = updateEnv e'' var v' in
         let v = bs expr e''' in v
       | _ -> raise InvalidApp
+    )
 
+  (* Pares *)
+  | Pair(t1, t2) -> Vpair(bs t1 e, bs t2 e)
+  | Hd( Pair(t, _)) -> bs t e
+  | Tl( Pair(_, t)) -> bs t e
+
+  (* Listas *)
+  | Nil -> Vnil
+  | Cons(t1, Nil) -> Vlist([bs t1 e; Vnil])
+  | Cons(t1, t2) ->
+      ( match (bs t2 e) with
+        | Vlist(tl) -> Vlist((bs t1 e)::tl)
+        | _ -> raise InvalidList
+      )
+  | Hd(Cons(t1,t2)) -> bs t1 e
+  | Tl(Cons(t1,t2)) -> bs t2 e
+
+  (* Expressão errada *)
   | _ -> raise NoRuleApplies

@@ -4,6 +4,9 @@ type value = Vint of int
            | Vbool of bool
            | Vclos of variable * expr * env
            | Vrclos of variable * variable * expr * env
+           | Vnil
+           | Vlist of value list
+           | Vpair of value * value
     and
        env = (variable * value) list
 
