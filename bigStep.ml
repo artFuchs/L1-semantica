@@ -6,6 +6,7 @@ exception NoRuleApplies
 exception NoOpMatches
 exception InvalidApp
 exception InvalidList
+exception EmptyList
 
 
 let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
@@ -90,8 +91,22 @@ let rec bs (t : expr) (e : env) = match t with
         | Vlist(tl) -> Vlist((bs t1 e)::tl)
         | _ -> raise InvalidList
       )
-  | Hd(Cons(t1,t2)) -> bs t1 e
-  | Tl(Cons(t1,t2)) -> bs t2 e
+  | IsEmpty(Nil) -> Vbool(true)
+  | IsEmpty(Cons(t1,t2)) -> Vbool(false)
+  | Hd(t) ->
+      let l = bs t e in
+      ( match l with
+        | Vlist(hd :: tl) -> hd
+        | Vnil -> raise EmptyList
+        | _ -> raise InvalidList
+      )
+  | Tl(t) ->
+      let l = bs t e in
+      ( match l with
+        | Vlist(hd :: tl) -> Vlist(tl)
+        | Vnil -> raise EmptyList
+        | _ -> raise InvalidList
+      )
 
   (* Expressão errada *)
   | _ -> raise NoRuleApplies
