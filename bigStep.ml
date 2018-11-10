@@ -4,6 +4,8 @@
 
 exception NoRuleApplies
 exception NoOpMatches
+exception InvalidApp
+
 
 let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
   | Sum, Vint(n1), Vint(n2) -> Vint(n1 + n2)
@@ -33,11 +35,18 @@ let rec bs (t : expr) (e : env) = match t with
   | If(t1,t2,t3) when (bs t1 e = Vbool(false)) -> (* BS-IFFLS *)
       let v = bs t3 e in v
 
+  (* Operadores unarios*)
+  | Unop (Not, t) ->
+      let v = bs t e in
+      ( match v with
+      | Vbool(vb) -> Vbool(not vb)
+      | _ -> raise NoOpMatches)
+
   (* Operadores binarios*)
   | Binop (op, t1, t2) ->
     let t1' = bs t1 e in
     let t2' = bs t2 e in
-      evalBop op t1' t2'
+    evalBop op t1' t2'
 
   (* funcoes *)
   | Fn(var, t') -> (* BS-FN *)
@@ -46,11 +55,22 @@ let rec bs (t : expr) (e : env) = match t with
     let v' = bs t1 e in
     let e' = updateEnv e var v' in
     let v = bs t2 e' in v
+  | Lrec(f,var,t1,t2) -> (* BS-LETREC *)
+    let v' = Vrclos(f,var,t1,e) in
+    let e' = updateEnv e f v' in
+    let v = bs t2 e' in v
+
+  (* Applicacao de funcoes *)
   | App(t1, t2) ->
     let cl = bs t1 e in
     let v' = bs t2 e in match cl with
-      | Vclos(var, expr, e') -> (* BS-APP*)
+      | Vclos(var, expr, e') -> (* BS-APP *)
         let e'' = updateEnv e' var v' in
         let v = bs expr e'' in v
+      | Vrclos(f, var, expr, e') -> (* BS-APPREC *)
+        let e'' = updateEnv e' f (Vrclos(f, var, expr, e')) in
+        let e''' = updateEnv e'' var v' in
+        let v = bs expr e''' in v
+      | _ -> raise InvalidApp
 
   | _ -> raise NoRuleApplies
