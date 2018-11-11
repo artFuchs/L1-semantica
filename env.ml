@@ -7,6 +7,7 @@ type value = Vint of int
            | Vnil
            | Vlist of value list
            | Vpair of value * value
+           | Vraise
     and
        env = (variable * value) list
 

@@ -22,7 +22,7 @@ let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
   | Le, Vint(n1), Vint(n2) -> Vbool(n1 <= n2)
   | Gt, Vint(n1), Vint(n2) -> Vbool(n1 > n2)
   | Ge, Vint(n1), Vint(n2) -> Vbool(n1 >= n2)
-  | _ -> raise NoOpMatches
+  | _ -> Vraise
 
 
 let rec bs (t : expr) (e : env) = match t with
@@ -31,13 +31,13 @@ let rec bs (t : expr) (e : env) = match t with
   | Bcte(t') -> Vbool(t')    (* BS-BOOL *)
   | Var(x) -> lookup e x  (* BS-ID *)
 
-  (* If *)
+  (* Condicional *)
   | If(t1,t2,t3) when (bs t1 e = Vbool(true)) -> (* BS-IFTR *)
       let v = bs t2 e in v
   | If(t1,t2,t3) when (bs t1 e = Vbool(false)) -> (* BS-IFFLS *)
       let v = bs t3 e in v
 
-  (* Operadores unarios*)
+  (* Operadores unários*)
   | Unop (Not, t) ->
       let v = bs t e in
       ( match v with
@@ -45,13 +45,13 @@ let rec bs (t : expr) (e : env) = match t with
         | _ -> raise NoOpMatches
       )
 
-  (* Operadores binarios*)
+  (* Operadores binários*)
   | Binop (op, t1, t2) ->
     let t1' = bs t1 e in
     let t2' = bs t2 e in
     evalBop op t1' t2'
 
-  (* funcoes *)
+  (* funções *)
   | Fn(var, t') -> (* BS-FN *)
     Vclos(var, t', e)
   | Let(var, t1, t2) -> (* BS-LET *)
@@ -63,7 +63,10 @@ let rec bs (t : expr) (e : env) = match t with
     let e' = updateEnv e f v' in
     let v = bs t2 e' in v
 
-  (* Applicacao de funcoes *)
+  (* Exceções para a Aplicação de funcoes *)
+  | App(Raise, _) -> Vraise
+  | App(_, Raise) -> Vraise
+  (* Aplicação de funcoes *)
   | App (t1, t2) ->
     let cl = bs t1 e in
     let v' = bs t2 e in
@@ -107,6 +110,15 @@ let rec bs (t : expr) (e : env) = match t with
         | Vnil -> raise EmptyList
         | _ -> raise InvalidList
       )
+
+  (* Tratamento de Exceções *)
+  | Raise -> Vraise
+  | If (Raise,_,_) -> Vraise
+  | Try(t1, t2) ->
+      let t1' = bs t1 e in
+      if t1' = Vraise
+      then bs t2 e
+      else t1'
 
   (* Expressão errada *)
   | _ -> raise NoRuleApplies
