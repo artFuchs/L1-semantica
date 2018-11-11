@@ -1,6 +1,8 @@
 (* Usa os modulos syntax.ml, env.ml *)
+
 #use "syntax.ml"
 #use "env.ml"
+
 
 exception NoRuleApplies
 exception NoOpMatches
