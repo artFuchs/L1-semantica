@@ -41,5 +41,5 @@ let rec unify (substs : subst list) (consts : tyEq list) = match consts with
     | (Tlist(t1), Tlist(t2) ) :: c -> unify substs ( (t1,t2) :: c )
     | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
     | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
-    | (Tvar(X), Tvar(X)) :: c -> unify substs c
+    | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify substs c
     | _ -> raise NoRuleApplies
