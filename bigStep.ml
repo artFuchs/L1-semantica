@@ -24,7 +24,7 @@ let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
   | Le, Vint(n1), Vint(n2) -> Vbool(n1 <= n2)
   | Gt, Vint(n1), Vint(n2) -> Vbool(n1 > n2)
   | Ge, Vint(n1), Vint(n2) -> Vbool(n1 >= n2)
-  | _ -> Vraise
+  | _ -> raise NoOpMatches
 
 
 let rec bs (t : expr) (e : env) = match t with

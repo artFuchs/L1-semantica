@@ -6,7 +6,7 @@ let evalTest term env answer =
     else false
 
 let rec evaluateTests tests = match tests with
-    |[] -> true :: []
+    |[] -> []
     |(term, env, answer) :: tl -> (evalTest term env answer) :: evaluateTests tl
 
 (* tests with operations *)
