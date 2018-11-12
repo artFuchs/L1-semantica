@@ -6,6 +6,10 @@ exception Fail
 type tyEq = tipo * tipo
 type subst = variable * tipo
 
+let newX lastX =
+  let a = (int_of_string lastX) + 1 in
+  string_of_int a
+
 let rec collect (env : tEnv) (program : expr) : tipo * tyEq list = match program with
     (* Valores *)
     | Ncte(t) -> (Tint, [])
@@ -31,6 +35,22 @@ let rec collect (env : tEnv) (program : expr) : tipo * tyEq list = match program
       let (ty1, c1) = collect env t1 in
       let (ty2, c2) = collect env t2 in
       (Tpair(ty1,ty2), List.concat [c1; c2])
+    | If(t1,t2,t3) ->
+      let (ty1, c1) = collect env t1 in
+      let (ty2, c2) = collect env t2 in
+      let (ty3, c3) = collect env t2 in
+      (ty2,List.concat [c1; c2; c3; [(ty1,Tbool); (ty2,ty3)] ])
+    | Var(x) ->
+      let t = lookup env x
+      in (t, [])
+    | App(t1, t2) ->
+      let (ty1, c1) = collect env t1 in
+      let (ty2, c2) = collect env t2 in
+      let lastX =
+        try (fst(List.hd env))
+        with Failure "hd" -> "0" in
+      let x = newX lastX in
+      (Tvar x, List.concat [c1; c2; [(ty1,Tfn(ty2,Tvar x) )] ])
     | _ -> raise NoRuleApplies
 
 
