@@ -12,11 +12,11 @@ type value = Vint of int
     and
        env = (variable * value) list
 
-type tipo = Tvar
+type tipo = Tvar of variable
           | Tint
           | Tbool
-          | Tfunc of tipo * tipo
-          | Tlist of tipo list
+          | Tfn of tipo * tipo
+          | Tlist of tipo
           | Tpair of tipo * tipo
    and
       tEnv = (variable * tipo) list

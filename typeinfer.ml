@@ -2,7 +2,9 @@
 #use "env.ml"
 
 exception NoRuleApplies
+exception Fail
 type tyEq = tipo * tipo
+type subst = variable * tipo
 
 let rec collect (env : tEnv) (program : expr) : tipo * tyEq list = match program with
     (* Valores *)
@@ -32,4 +34,12 @@ let rec collect (env : tEnv) (program : expr) : tipo * tyEq list = match program
     | _ -> raise NoRuleApplies
 
 
-let rec unify subst (const : tyEq list) = [];
+let rec unify (substs : subst list) (consts : tyEq list) = match consts with
+    | [] -> substs
+    | (Tint, Tint) :: c -> unify substs c
+    | (Tbool, Tbool) :: c -> unify substs c
+    | (Tlist(t1), Tlist(t2) ) :: c -> unify substs ( (t1,t2) :: c )
+    | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
+    | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
+    | (Tvar(X), Tvar(X)) :: c -> unify substs c
+    | _ -> raise NoRuleApplies
