@@ -4,7 +4,7 @@
 exception NoRuleApplies
 exception Fail
 type tyEq = tipo * tipo
-type subst = variable * tipo
+type replacement = variable * tipo
 
 let newX lastX =
   let a = (int_of_string lastX) + 1 in
@@ -100,12 +100,39 @@ let rec collectR (env : tEnv) (program : expr) (lastX : string): tipo * tyEq lis
 let collect (env : tEnv) (program : expr) : tipo * tyEq list =
     collectR env program "0"
 
-let rec unify (substs : subst list) (consts : tyEq list) = match consts with
-    | [] -> substs
-    | (Tint, Tint) :: c -> unify substs c
-    | (Tbool, Tbool) :: c -> unify substs c
-    | (Tlist(t1), Tlist(t2) ) :: c -> unify substs ( (t1,t2) :: c )
-    | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
-    | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify substs ( (t1,t3) :: (t2,t4) :: c )
-    | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify substs c
+let rec replace (dom :replacement list) ty = match ty with
+    | Tint -> Tint
+    | Tbool -> Tbool
+    | Tfn(t1, t2) -> Tfn(replace dom t1, replace dom t2)
+    | Tpair(t1, t2) -> Tpair(replace dom t1, replace dom t2)
+    | Tlist(t) -> Tlist(replace dom t)
+    | Tvar(x) ->
+      try lookup dom x
+      with NotFound -> Tvar(x)
+
+(*  occurs t1 t2 - verifica se t2 ocorre em t1 onde
+    t1 : tipo
+    t2 : tipo
+    retorno - booleano : true se t2 ocorre em t1, false c.c.
+
+    exemplos:
+    occurs Tvar("x") Tvar("x") deve retornar true
+    occurs Tint Tvar("x") deve retornar false
+    occurs Tfn(Tint,Tvar("x")) Tvar("x") deve retornar true
+*)
+let rec occurs t1 t2 = match t1 with
+    | t when (t1 = t2) -> true
+    | Tfn(t3,t4) -> (occurs t3 t2) || (occurs t4 t2)
+    | Tpair(t3,t4) -> (occurs t3 t2) || (occurs t4 t2)
+    | Tlist(t3) -> (occurs t3 t2)
+    | _ -> false
+
+let rec unify (reps : replacement list) (consts : tyEq list) = match consts with
+    | [] -> reps
+    | (Tint, Tint) :: c -> unify reps c
+    | (Tbool, Tbool) :: c -> unify reps c
+    | (Tlist(t1), Tlist(t2) ) :: c -> unify reps ( (t1,t2) :: c )
+    | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
+    | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
+    | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify reps c
     | _ -> raise NoRuleApplies
