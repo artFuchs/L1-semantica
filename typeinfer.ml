@@ -100,15 +100,7 @@ let rec collectR (env : tEnv) (program : expr) (lastX : string): tipo * tyEq lis
 let collect (env : tEnv) (program : expr) : tipo * tyEq list =
     collectR env program "0"
 
-let rec replace (dom :replacement list) ty = match ty with
-    | Tint -> Tint
-    | Tbool -> Tbool
-    | Tfn(t1, t2) -> Tfn(replace dom t1, replace dom t2)
-    | Tpair(t1, t2) -> Tpair(replace dom t1, replace dom t2)
-    | Tlist(t) -> Tlist(replace dom t)
-    | Tvar(x) ->
-      try lookup dom x
-      with NotFound -> Tvar(x)
+
 
 (*  occurs t1 t2 - verifica se t2 ocorre em t1 onde
     t1 : tipo
@@ -135,4 +127,23 @@ let rec unify (reps : replacement list) (consts : tyEq list) = match consts with
     | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
     | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
     | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify reps c
+    | (Tvar(x), t) :: c when (not (occurs t (Tvar x) )) ->
+        unify (List.append reps [(x,t)]) c
+    | (t, Tvar(x)) :: c when (not (occurs t (Tvar x) )) ->
+            unify (List.append reps [(x,t)]) c
     | _ -> raise NoRuleApplies
+
+let rec applysubs (dom :replacement list) ty = match ty with
+    | Tint -> Tint
+    | Tbool -> Tbool
+    | Tfn(t1, t2) -> Tfn(applysubs dom t1, applysubs dom t2)
+    | Tpair(t1, t2) -> Tpair(applysubs dom t1, applysubs dom t2)
+    | Tlist(t) -> Tlist(applysubs dom t)
+    | Tvar(x) ->
+      try lookup dom x
+      with NotFound -> Tvar(x)
+
+let typeinfer (env:tEnv) (program:expr) =
+  let (t,c) = collect env program in
+  let dom = unify [] c in
+  applysubs dom t
