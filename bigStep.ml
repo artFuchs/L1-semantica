@@ -1,5 +1,4 @@
 (* Usa os modulos syntax.ml, env.ml *)
-
 #use "syntax.ml"
 #use "env.ml"
 
@@ -10,7 +9,12 @@ exception InvalidApp
 exception InvalidList
 exception EmptyList
 
+(* evalBop - função que faz a avaliação de operadores binários
 
+   uso: evalBop op v1 v2 onde
+    op : bop - operador a ser aplicado
+    v1 e v2 : value - valores a serem operados
+*)
 let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
   | Sum, Vint(n1), Vint(n2) -> Vint(n1 + n2)
   | Sub, Vint(n1), Vint(n2) -> Vint(n1 - n2)
@@ -26,7 +30,12 @@ let evalBop (op : bop) (v1 : value) (v2 : value) = match op, v1, v2 with
   | Ge, Vint(n1), Vint(n2) -> Vbool(n1 >= n2)
   | _ -> raise NoOpMatches
 
+(* bs - função que avalia uma expressão pela semantica operacional big step
 
+  uso: bs t e , onde
+    t : expr - programa ou termo a ser analisado
+    e: env - ambiente a ser analisado
+*)
 let rec bs (t : expr) (e : env) = match t with
   (* Valores *)
   | Ncte(t') -> Vint(t')    (* BS-NUM *)

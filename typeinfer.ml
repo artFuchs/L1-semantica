@@ -1,8 +1,10 @@
+(* Usa os modulos syntax.ml, env.ml *)
 #use "syntax.ml"
 #use "env.ml"
 
-exception NoRuleApplies
-exception Fail
+exception CollectFail
+exception UnifyFail
+exception TypeinferFail
 type tyEq = tipo * tipo
 type replacement = variable * tipo
 
@@ -11,7 +13,17 @@ let newX lastX =
   string_of_int a
 
 
+(* collectR - função auxiliar de collect.
 
+  Uso: collectR env program lastX
+    env : tEnv - ambiente de tipos do programa
+    program : expr - uma expressão que representa o programa a ser verificado
+    lastX : string - a ultima variável de tipo criada até agora pelo coletor
+  retorna : (T, C) onde:
+    T : tipo - tipo encontrado ao analisar o programa
+    C : tyEq list - lista de equações de tipo a serem resolvidas para determinar o tipo do programa
+  pode gerar exceção UnifyFail
+*)
 let rec collectR (env : tEnv) (program : expr) (lastX : string): tipo * tyEq list = match program with
     (* Valores *)
     | Ncte(t) -> (Tint, [])
@@ -95,22 +107,40 @@ let rec collectR (env : tEnv) (program : expr) (lastX : string): tipo * tyEq lis
       let tXlist =  Tlist (Tvar nX) in
       (Tbool, List.concat [c; [(ty, tXlist)] ])
     | Raise -> (Tvar (newX lastX), [])
-    | _ -> raise NoRuleApplies
+    | _ -> raise CollectFail
 
+(* collect - função que coleta as equações de tipo do programa
+
+    Uso: collect env program lastX , onde
+      env : tEnv - ambiente de tipos do programa
+      program : expr - programa a ser analisado
+    retorna: (T, C), onde
+      T : tipo - tipo do programa analisado
+      C : tyEq list - lista de equações de tipo a serem resolvidas para determinar o tipo do programa
+    pode gerar exceção UnifyFail.
+
+    exemplos:
+      collect [] (Binop(Sum, Ncte 5, Ncte 2)) deve retornar (Tint, [(Tint, Tint); (Tint, Tint)])
+      collect [] App (Fn ("x", Binop (Sum, Var "x", Ncte 1)), Ncte 5) deve retornar
+              (Tvar "1", [(Tvar "2", Tint); (Tint, Tint); (Tfn (Tvar "2", Tint), Tfn (Tint, Tvar "1"))])
+*)
 let collect (env : tEnv) (program : expr) : tipo * tyEq list =
     collectR env program "0"
 
 
 
-(*  occurs t1 t2 - verifica se t2 ocorre em t1 onde
-    t1 : tipo
-    t2 : tipo
-    retorno - booleano : true se t2 ocorre em t1, false c.c.
+(*  occurs - função que verifica se t2 ocorre em t1
+
+    Uso: occurs t1 t2 , onde:
+      t1 : tipo
+      t2 : tipo
+    retorna: true se t2 ocorre em t1,
+             false c.c.
 
     exemplos:
-    occurs Tvar("x") Tvar("x") deve retornar true
-    occurs Tint Tvar("x") deve retornar false
-    occurs Tfn(Tint,Tvar("x")) Tvar("x") deve retornar true
+      occurs Tvar("x") Tvar("x") deve retornar true
+      occurs Tint Tvar("x") deve retornar false
+      occurs Tfn(Tint,Tvar("x")) Tvar("x") deve retornar true
 *)
 let rec occurs t1 t2 = match t1 with
     | t when (t1 = t2) -> true
@@ -119,21 +149,41 @@ let rec occurs t1 t2 = match t1 with
     | Tlist(t3) -> (occurs t3 t2)
     | _ -> false
 
-let rec unify (reps : replacement list) (consts : tyEq list) = match consts with
-    | [] -> reps
-    | (Tint, Tint) :: c -> unify reps c
-    | (Tbool, Tbool) :: c -> unify reps c
-    | (Tlist(t1), Tlist(t2) ) :: c -> unify reps ( (t1,t2) :: c )
-    | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
-    | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify reps ( (t1,t3) :: (t2,t4) :: c )
-    | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify reps c
-    | (Tvar(x), t) :: c when (not (occurs t (Tvar x) )) ->
-        unify (List.append reps [(x,t)]) c
-    | (t, Tvar(x)) :: c when (not (occurs t (Tvar x) )) ->
-            unify (List.append reps [(x,t)]) c
-    | _ -> raise NoRuleApplies
+(* unify - função que procura substituições de tipo em um conjunto de equações de tipos consts
 
-let rec applysubs (dom :replacement list) ty = match ty with
+   Uso: unify subs consts , onde
+      subs : replacement list - lista de substituições de tipo encontradas até o momento
+      consts : tyEq list - lista de equações de tipo a serem resolvidas para gerar as substituições de tipo
+   retorna: a lista contendo as substituições de tipo encontradas.
+   pode gerar exceção UnifyFail
+
+   exemplos :
+    unify [] [(Tint, Tint); (Tint, Tint)] deve retornar []
+    unify [] (App (Fn ("x", Binop (Sum, Var "x", Ncte 1)), Ncte 5)) deve retornar [("2", Tint); ("2", Tint); ("1", Tint)]
+*)
+let rec unify (subs : replacement list) (consts : tyEq list) = match consts with
+    | [] -> subs
+    | (Tint, Tint) :: c -> unify subs c
+    | (Tbool, Tbool) :: c -> unify subs c
+    | (Tlist(t1), Tlist(t2) ) :: c -> unify subs ( (t1,t2) :: c )
+    | (Tfn(t1,t2), Tfn(t3,t4) ) :: c -> unify subs ( (t1,t3) :: (t2,t4) :: c )
+    | (Tpair(t1,t2), Tpair(t3,t4) ) :: c -> unify subs ( (t1,t3) :: (t2,t4) :: c )
+    | (Tvar(x1), Tvar(x2)) :: c when (x1 = x2) -> unify subs c
+    | (Tvar(x), t) :: c when (not (occurs t (Tvar x) )) ->
+        unify (List.append subs [(x,t)]) c
+    | (t, Tvar(x)) :: c when (not (occurs t (Tvar x) )) ->
+            unify (List.append subs [(x,t)]) c
+    | _ -> raise UnifyFail
+
+(* applysubs - função aplica substituições em um tipo ty
+
+    uso: applysubs dom ty , onde
+      dom : replacement list - substituições de variaveis encontradas pelo unify
+      ty : tipo - tipo a ter variaveis substituidas
+    retorna : o tipo com substituições aplicadas
+              Tvar(X) se o tipo não puder ser substituido
+*)
+let rec applysubs (dom : replacement list) (ty : tipo) = match ty with
     | Tint -> Tint
     | Tbool -> Tbool
     | Tfn(t1, t2) -> Tfn(applysubs dom t1, applysubs dom t2)
@@ -143,7 +193,18 @@ let rec applysubs (dom :replacement list) ty = match ty with
       try lookup dom x
       with NotFound -> Tvar(x)
 
+
+(* typeinfer - função verifica o tipo de um programa
+
+    uso: typeinfer env program , onde:
+      env : tEnv - ambiente de tipos do programa
+      program : expr - programa a ser analisado
+    retorna : o tipo do programa
+    pode gerar exceção TypeinferFail
+*)
 let typeinfer (env:tEnv) (program:expr) =
-  let (t,c) = collect env program in
-  let dom = unify [] c in
+  let (t,c) = try collect env program
+              with CollectFail -> raise TypeinferFail in
+  let dom = try unify [] c
+            with UnifyFail -> raise TypeinferFail in
   applysubs dom t
