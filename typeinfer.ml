@@ -1,6 +1,8 @@
-(* Usa os modulos syntax.ml, env.ml *)
+(* Usa os modulos syntax.ml, env.ml
 #use "syntax.ml"
-#use "env.ml"
+#use "env.ml" 
+open Syntax
+open Env *)
 
 exception CollectFail
 exception UnifyFail

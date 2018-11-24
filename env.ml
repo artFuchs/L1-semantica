@@ -1,5 +1,6 @@
-(* Usa o modulo syntax.ml *)
+(* Usa o modulo syntax.ml
 #use "syntax.ml"
+open Syntax *)
 
 type value = Vint of int
            | Vbool of bool

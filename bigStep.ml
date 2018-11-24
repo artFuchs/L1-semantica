@@ -1,6 +1,8 @@
-(* Usa os modulos syntax.ml, env.ml *)
+(* Usa os modulos syntax.ml, env.ml
 #use "syntax.ml"
 #use "env.ml"
+open Syntax
+open Env*)
 
 
 exception NoRuleApplies
@@ -107,11 +109,20 @@ let rec bs (t : expr) (e : env) = match t with
       )
   | IsEmpty(Nil) -> Vbool(true)
   | IsEmpty(Cons(t1,t2)) -> Vbool(false)
+  | IsEmpty(t) ->
+      let l = bs t e in
+      ( match l with
+        | Vnil -> Vbool true
+        | Vlist([Vnil]) -> Vbool true
+        | Vlist(hd :: tl) -> Vbool false
+        | _ -> raise InvalidList
+      )
   | Hd(t) ->
       let l = bs t e in
       ( match l with
-        | Vlist(hd :: tl) -> hd
         | Vnil -> raise EmptyList
+        | Vlist([Vnil]) -> raise EmptyList
+        | Vlist(hd :: tl) -> hd
         | _ -> raise InvalidList
       )
   | Tl(t) ->
