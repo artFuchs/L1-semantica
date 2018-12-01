@@ -66,3 +66,6 @@ let list1 = Cons(Ncte 1, Nil)
 
 let appLast4 = App(last, list4)
 let appLast1 = App(last, list1)
+
+let isLast4 = App(isLast, list4)
+let isLast1 = App(isLast, list1)

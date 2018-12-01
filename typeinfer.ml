@@ -63,7 +63,7 @@ let rec collectR (env : tEnv) (program : expr) (lastX : string): tipo * tyEq lis
       let nX = newX lastX in
       let (ty1, c1, acX1) = collectR env t1 nX in
       let (ty2, c2, acX2) = collectR env t2 acX1 in
-      let tX = Tvar acX2 in
+      let tX = Tvar nX in
       (tX, List.concat [c1; c2; [(ty1,Tfn(ty2,tX) )] ], acX2)
     | Fn(x, t) ->
       let nX = newX lastX in
